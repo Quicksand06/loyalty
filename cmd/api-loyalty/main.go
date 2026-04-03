@@ -8,8 +8,8 @@ import (
 	"os"
 	"time"
 
-	"github.com/joho/godotenv"
 	_ "github.com/jackc/pgx/v5/stdlib"
+	"github.com/joho/godotenv"
 )
 
 func main() {
@@ -46,15 +46,64 @@ func main() {
 		log.Fatal("failed to create transactions table:", err)
 	}
 
+	_, err = db.Exec(`
+		CREATE TABLE IF NOT EXISTS customers (
+			customer_id      TEXT PRIMARY KEY,
+			identifier_type  TEXT NOT NULL,
+			customer_active  BOOLEAN NOT NULL DEFAULT TRUE
+		)
+	`)
+	if err != nil {
+		log.Fatal("failed to create customers table:", err)
+	}
+
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("POST /transactions", handleCreateTrx(db))
+	mux.HandleFunc("POST /customers", handleCreateCustomer(db))
 	server := &http.Server{
 		Addr:    ":8080",
 		Handler: mux,
 	}
 	log.Println("starting server on :8080")
 	log.Fatal(server.ListenAndServe())
+}
+
+type createCustomerRequest struct {
+	CustomerID     string         `json:"customerId"`
+	IdentifierType IdentifierType `json:"identifierType"`
+}
+
+func handleCreateCustomer(db *sql.DB) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var req createCustomerRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			http.Error(w, "invalid request body", http.StatusBadRequest)
+			return
+		}
+
+		if req.CustomerID == "" {
+			http.Error(w, "customerId is required", http.StatusBadRequest)
+			return
+		}
+
+		if !req.IdentifierType.isValid() {
+			http.Error(w, "invalid identifierType", http.StatusBadRequest)
+			return
+		}
+
+		_, err := db.ExecContext(r.Context(), `
+			INSERT INTO customers (customer_id, identifier_type)
+			VALUES ($1, $2)
+		`, req.CustomerID, req.IdentifierType)
+		if err != nil {
+			log.Println("failed to insert customer:", err)
+			http.Error(w, "failed to store customer", http.StatusInternalServerError)
+			return
+		}
+
+		w.WriteHeader(http.StatusCreated)
+	}
 }
 
 type createTrxRequest struct {
@@ -90,4 +139,20 @@ func handleCreateTrx(db *sql.DB) http.HandlerFunc {
 
 		w.WriteHeader(http.StatusCreated)
 	}
+}
+
+type IdentifierType string
+
+const (
+	IdentifierTypeLoyaltyCard  IdentifierType = "loyalty_card"
+	IdentifierTypeMembershipID IdentifierType = "membership_id"
+	IdentifierTypeEmailAddress IdentifierType = "email_address"
+)
+
+func (e IdentifierType) isValid() bool {
+	switch e {
+	case IdentifierTypeLoyaltyCard, IdentifierTypeMembershipID, IdentifierTypeEmailAddress:
+		return true
+	}
+	return false
 }
