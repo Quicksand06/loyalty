@@ -2,3 +2,4 @@
 /api-loyalty
 /points-engine
 .claude/settings.local.json
+*.exe
