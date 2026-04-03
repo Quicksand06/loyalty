@@ -1,3 +1,4 @@
 .env
 /api-loyalty
 /points-engine
+.claude/settings.local.json
