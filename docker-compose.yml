@@ -1,0 +1,46 @@
+version: "3.9"
+
+services:
+  # app:
+  #   build:
+  #     context: .
+  #     dockerfile: Dockerfile
+  #   container_name: loyalty_app
+  #   ports:
+  #     - "3000:3000"
+  #   environment:
+  #     PORT: 3000
+
+  #     # database settings
+  #     DATABASE_URL: ${DATABASE_URL}
+
+  #     # optional RUST_LOG
+  #     RUST_LOG: info
+
+  #   depends_on:
+  #     postgres:
+  #       condition: service_healthy
+
+  #   # restart policy (optional)
+  #   restart: unless-stopped
+
+  postgres:
+    image: postgres:16
+    container_name: postgres_db
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: Pa55word!
+      POSTGRES_DB: loyalty
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data:

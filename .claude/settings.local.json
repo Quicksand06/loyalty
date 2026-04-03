@@ -1,0 +1,9 @@
+{
+  "outputStyle": "Learning",
+  "permissions": {
+    "allow": [
+      "Bash(git add:*)",
+      "Bash(git commit -m ':*)"
+    ]
+  }
+}
