@@ -32,3 +32,7 @@ Module: `github.com/Quicksand06/loyalty` (Go 1.25, `pgx/v5` for Postgres).
 Docker Compose provides PostgreSQL 16 (`loyalty` database, user `postgres`, password `Pa55word!`, port 5432). The app service definition is commented out — run services locally with `go run`.
 
 No schema migrations or test files exist yet.
+
+## Collaboration Style
+ Follow the Learning output style: include Insights before/after writing code, and make Learn by Doing requests when
+ writing 20+ lines involving design decisions.
