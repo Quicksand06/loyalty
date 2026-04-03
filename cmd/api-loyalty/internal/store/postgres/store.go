@@ -3,9 +3,11 @@ package postgres
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 
 	"github.com/Quicksand06/loyalty/cmd/api-loyalty/internal/domain"
+	"github.com/Quicksand06/loyalty/cmd/api-loyalty/internal/store"
 )
 
 type Store struct {
@@ -28,7 +30,22 @@ func (s *Store) CreateCustomer(ctx context.Context, c domain.Customer) error {
 }
 
 func (s *Store) CreateTransaction(ctx context.Context, t domain.Transaction) error {
-	_, err := s.db.ExecContext(ctx, `
+	var active bool
+	err := s.db.QueryRowContext(ctx,
+		`SELECT customer_active FROM customers WHERE customer_id = $1`,
+		t.CustomerID,
+	).Scan(&active)
+	if errors.Is(err, sql.ErrNoRows) {
+		return store.ErrCustomerNotFound
+	}
+	if err != nil {
+		return fmt.Errorf("check customer: %w", err)
+	}
+	if !active {
+		return store.ErrCustomerInactive
+	}
+
+	_, err = s.db.ExecContext(ctx, `
 		INSERT INTO transactions (transaction_id, amount, store_id, timestamp, customer_id)
 		VALUES ($1, $2, $3, $4, $5)
 	`, t.TransactionID, t.Amount, t.StoreID, t.Timestamp.UTC(), t.CustomerID)

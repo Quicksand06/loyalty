@@ -2,6 +2,7 @@ package handler
 
 import (
 	"encoding/json"
+	"errors"
 	"log"
 	"net/http"
 	"time"
@@ -40,8 +41,15 @@ func CreateTransaction(ts store.TransactionStore) http.HandlerFunc {
 		}
 
 		if err := ts.CreateTransaction(r.Context(), t); err != nil {
-			log.Println("failed to insert transaction:", err)
-			http.Error(w, "failed to store transaction", http.StatusInternalServerError)
+			switch {
+			case errors.Is(err, store.ErrCustomerNotFound):
+				http.Error(w, "customer not found", http.StatusConflict)
+			case errors.Is(err, store.ErrCustomerInactive):
+				http.Error(w, "customer is inactive", http.StatusConflict)
+			default:
+				log.Println("failed to insert transaction:", err)
+				http.Error(w, "failed to store transaction", http.StatusInternalServerError)
+			}
 			return
 		}
 
