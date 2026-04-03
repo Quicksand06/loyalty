@@ -2,8 +2,14 @@ package postgres
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
+	"io/fs"
+	"log/slog"
 
+	"github.com/golang-migrate/migrate/v4"
+	migratepostgres "github.com/golang-migrate/migrate/v4/database/postgres"
+	"github.com/golang-migrate/migrate/v4/source/iofs"
 	_ "github.com/jackc/pgx/v5/stdlib"
 )
 
@@ -18,30 +24,25 @@ func Open(dsn string) (*sql.DB, error) {
 	return db, nil
 }
 
-func Bootstrap(db *sql.DB) error {
-	_, err := db.Exec(`
-		CREATE TABLE IF NOT EXISTS transactions (
-			transaction_id TEXT PRIMARY KEY,
-			amount         NUMERIC(19, 4) NOT NULL,
-			store_id       TEXT NOT NULL,
-			timestamp      TIMESTAMPTZ NOT NULL,
-			customer_id    TEXT NOT NULL
-		)
-	`)
+func Migrate(db *sql.DB, migrationsFS fs.FS) error {
+	src, err := iofs.New(migrationsFS, ".")
 	if err != nil {
-		return fmt.Errorf("create transactions table: %w", err)
+		return fmt.Errorf("load migrations: %w", err)
 	}
 
-	_, err = db.Exec(`
-		CREATE TABLE IF NOT EXISTS customers (
-			customer_id      TEXT PRIMARY KEY,
-			identifier_type  TEXT NOT NULL,
-			customer_active  BOOLEAN NOT NULL DEFAULT TRUE
-		)
-	`)
+	driver, err := migratepostgres.WithInstance(db, &migratepostgres.Config{})
 	if err != nil {
-		return fmt.Errorf("create customers table: %w", err)
+		return fmt.Errorf("create migrate driver: %w", err)
 	}
 
+	m, err := migrate.NewWithInstance("iofs", src, "postgres", driver)
+	if err != nil {
+		return fmt.Errorf("create migrator: %w", err)
+	}
+
+	if err := m.Up(); err != nil && !errors.Is(err, migrate.ErrNoChange) {
+		return fmt.Errorf("run migrations: %w", err)
+	}
+	slog.Info("Successfully applied migrations")
 	return nil
 }

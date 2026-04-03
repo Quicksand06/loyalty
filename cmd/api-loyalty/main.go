@@ -6,6 +6,7 @@ import (
 
 	"github.com/Quicksand06/loyalty/cmd/api-loyalty/internal/config"
 	"github.com/Quicksand06/loyalty/cmd/api-loyalty/internal/handler"
+	"github.com/Quicksand06/loyalty/cmd/api-loyalty/internal/migrations"
 	"github.com/Quicksand06/loyalty/cmd/api-loyalty/internal/store/postgres"
 )
 
@@ -21,7 +22,7 @@ func main() {
 	}
 	defer db.Close()
 
-	if err := postgres.Bootstrap(db); err != nil {
+	if err := postgres.Migrate(db, migrations.FS); err != nil {
 		log.Fatal(err)
 	}
 
