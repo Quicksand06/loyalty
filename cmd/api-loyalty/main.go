@@ -5,13 +5,24 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"os"
 	"time"
 
+	"github.com/joho/godotenv"
 	_ "github.com/jackc/pgx/v5/stdlib"
 )
 
 func main() {
-	db, err := sql.Open("pgx", "postgres://postgres:Pa55word!@localhost:5432/loyalty")
+	if err := godotenv.Load(); err != nil {
+		log.Println("no .env file found, using environment variables")
+	}
+
+	dsn, ok := os.LookupEnv("DATABASE_URL")
+	if !ok {
+		log.Fatal("DATABASE_URL environment variable is required")
+	}
+
+	db, err := sql.Open("pgx", dsn)
 	if err != nil {
 		log.Fatal(err)
 	}
