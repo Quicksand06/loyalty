@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"log"
@@ -11,6 +12,11 @@ import (
 	"github.com/Quicksand06/loyalty/cmd/api-loyalty/internal/store"
 )
 
+// EventPublisher publishes domain events to a message broker.
+type EventPublisher interface {
+	Publish(ctx context.Context, key string, value []byte) error
+}
+
 type createTrxRequest struct {
 	TransactionID string    `json:"transactionId"`
 	Amount        float64   `json:"amount"`
@@ -19,7 +25,7 @@ type createTrxRequest struct {
 	CustomerID    string    `json:"customerId"`
 }
 
-func CreateTransaction(ts store.TransactionStore) http.HandlerFunc {
+func CreateTransaction(ts store.TransactionStore, pub EventPublisher) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var req createTrxRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -51,6 +57,13 @@ func CreateTransaction(ts store.TransactionStore) http.HandlerFunc {
 				http.Error(w, "failed to store transaction", http.StatusInternalServerError)
 			}
 			return
+		}
+
+		data, err := json.Marshal(t)
+		if err != nil {
+			log.Println("failed to marshal transaction event:", err)
+		} else if err := pub.Publish(r.Context(), t.TransactionID, data); err != nil {
+			log.Println("failed to publish transaction event:", err)
 		}
 
 		w.WriteHeader(http.StatusCreated)

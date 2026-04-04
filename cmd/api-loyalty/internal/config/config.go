@@ -10,6 +10,8 @@ import (
 type Config struct {
 	DatabaseURL string
 	HTTPAddr    string
+	KafkaBroker string
+	KafkaTopic  string
 }
 
 func Load() (Config, error) {
@@ -27,8 +29,20 @@ func Load() (Config, error) {
 		addr = ":8080"
 	}
 
+	broker := os.Getenv("KAFKA_BROKER")
+	if broker == "" {
+		broker = "localhost:9092"
+	}
+
+	topic := os.Getenv("KAFKA_TOPIC")
+	if topic == "" {
+		topic = "transactions"
+	}
+
 	return Config{
 		DatabaseURL: dsn,
 		HTTPAddr:    addr,
+		KafkaBroker: broker,
+		KafkaTopic:  topic,
 	}, nil
 }
